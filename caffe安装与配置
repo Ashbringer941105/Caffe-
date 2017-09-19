@@ -1,0 +1,41 @@
+来自http://www.cnblogs.com/denny402/p/5067265.html
+感谢周子琪、李攀、靳亚东的热情帮助和技术支持
+
+首先下载caffe
+# sudo git clone https://github.com/BVLC/caffe.git
+然后安装一堆第三方库
+# sudo apt-get install libatlas-base-dev
+# sudo apt-get install libprotobuf-dev
+# sudo apt-get install libleveldb-dev
+# sudo apt-get install libsnappy-dev
+# sudo apt-get install libopencv-dev
+# sudo apt-get install libboost-all-dev
+# sudo apt-get install libhdf5-serial-dev
+# sudo apt-get install libgflags-dev
+# sudo apt-get install libgoogle-glog-dev
+# sudo apt-get install liblmdb-dev
+# sudo apt-get install protobuf-compiler
+接着，安装opencv
+# cd caffe
+# sudo git clone https://github.com/jayrambhia/Install-OpenCV
+# cd Install-OpenCV/Ubuntu
+# sudo sh dependencies.sh
+# cd 2.4
+# sudo sh opencv2_4_10.sh
+然后编译caffe
+# cd ~/caffe
+# sudo cp Makefile.config.example Makefile.config
+# make all
+编译过程中会遇到hdf5错误，进入caffe文件夹。
+编辑Makefile.config文件。
+删除CUDA_ARCH :=中的前两行，保留到30
+更改
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib
+为
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/include/hdf5/serial \ /usr/local/include
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/lib/x86_64-linux-gnu/hdf5/serial \ /usr/local/lib /usr/lib
+然后在编辑Makefile文件
+将LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_hl hdf5注释掉
+并在其下放加入LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_serial_hl hdf5_serial
+
