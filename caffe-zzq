@@ -1,0 +1,215 @@
+===
+1.测试cuda8.0是否安装成功
+
+ls /dev/nvidia*
+
+显示四个或者三个
+2.cudnn安装
+
+下载好文件，进入下载目录
+tar zxvf cudnn-8.0-linux-x64-v5.1.tgz
+解压后有个cuda文件，内有include和lib64两个文件夹，进入include文件夹，执行如下命令复制头文件：
+cd ../cuda/include/
+sudo cp cudnn.h /usr/local/cuda/include/
+再cd命令切换进lib64文件夹，执行如下命令复制动态链接库：
+cd ../lib64/
+sudo cp lib* /usr/local/cuda/lib64/
+然后进入复制后的动态链接库进行新的链接。先进入目录：
+cd /usr/local/cuda/lib64/
+
+查看已有链接：
+ls -al | grep libcudnn
+显示四个
+删除原有动态文件:
+sudo rm -rf libcudnn.so libcudnn.so.5
+再次查看：
+ls -al | grep libcudnn
+显示两个，说明已删除，现在建立新的链接：
+sudo ln -s libcudnn.so.5.1.5 libcudnn.so.5
+sudo ln -s libcudnn.so.5 libcudnn.so
+
+再次查看：
+ls -al | grep libcudnn
+显示四个，已链接好！
+然后设置环境变量和动态链接库：
+sudo gedit /etc/profile
+然后再打开的文件末尾加上（“=”前后不要有空格）
+export PATH=/usr/local/cuda/bin:$PATH
+
+保存之后创建链接文件：
+sudo vim /etc/ld.so.conf.d/cuda.conf
+这是一个空白文件，添加：
+/usr/local/cuda/lib64
+按下esc键，输入（：wq）保存并退出
+输入如下命令使链接生效
+sudo ldconfig
+3.安装caffe相关依赖
+
+sudo apt-get install git
+sudo apt-get install libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev
+libhdf5-serial-dev protobuf-compiler
+sudo apt-get install --no-install-recommends libboost-all-dev
+sudo apt-get install libatlas-base-dev
+sudo apt-get install python-dev
+sudo apt-get insall libgflags-dev libgoogle-glog-dev liblmdb-dev
+
+安装python依赖哭
+sudo apt-get install cython python-numpy python-scipy python-skimage python-scikits-learn python-matplotlib ipython python-h5py python-leveldb python-networkx python-nose python-pandas python-dateutil python-protobuf python-gflags python-yaml python-pil
+
+安装矩阵加速器
+[sudo] apt-get install libopenblas-dev
+4.安装caffe:
+
+从官网下载caffe-master压缩包，解压到自己想要的目录
+进入主目录下
+cp Makefile.config.example Makefile.config
+
+Vim Makefile.config
+修改BLAS:=open
+将use_cudnn ：=1的备注取消
+
+修改下面配置：
+
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial/
+
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib /usr/lib/aarch64-linux-gnu/hdf5/serial/
+（好象是在200行左右）
+
+====
+5.编译测试
+
+make all -j8
+make test -j8
+make runtest -j8
+make pycaffe
+
+=======
+6.测试
+
+下载MNIST数据库并解压缩
+
+./data/mnist/get_mnist.sh
+
+将其转换成Lmdb数据库格式
+
+./examples/mnist/create_mnist.sh
+
+训练网络
+
+./examples/mnist/train_lenet.sh
+
+结果显示：
+
+==========
+错误集锦
+1.make all -j8出现错误：
+
+'
+/usr/bin/ld: cannot find -lhdf5_hl
+/usr/bin/ld: cannot find -lhdf5
+collect2: error: ld returned 1 exit status
+
+这说明连接器找不到　hdf5_hl和hdf5这两个库，没法进行链接。
+我的解决方案是更改makefile:在ｍakefile中作如下更改：
+LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_hl hdf5
+
+LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_serial_hl hdf5_serial
+
+（把第一行注释，然后改成第二行的内容就可以了）'
+2.make all -j8出现错误：
+
+进入caffe根目录，
+gedit Makefile.config
+设置以下内容：
+USE_CUDNN := 1 #取消该句注释
+PYTHON_INCLUDE := /usr/include/python2.7  
+/usr/lib/python2.7/dist-packages/numpy/core/include
+WITH_PYTHON_LAYER := 1 #取消注释
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib  
+/usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu/hdf5/serial
+3.make all -j8出现错误：
+
+CXX .build_release/src/caffe/proto/caffe.pb.cc
+In file included from .build_release/src/caffe/proto/caffe.pb.cc:5:0:
+.build_release/src/caffe/proto/caffe.pb.h:9:42: fatal error: google/protobuf/stubs/common.h: 没有那个文件或目录
+#include <google/protobuf/stubs/common.h>
+^
+compilation terminated.
+Makefile:588: recipe for target '.build_release/src/caffe/proto/caffe.pb.o' failed
+make: *** [.build_release/src/caffe/proto/caffe.pb.o] Error 1
+
+可能是依赖包没有下载完全，重新回到步骤三，逐个测试安装
+4.make all -j8出现错误：
+
+/sbin/ldconfig.real: /usr/lib/nvidia-375/libEGL.so.1 不是符号连接
+/sbin/ldconfig.real: /usr/lib32/nvidia-375/libEGL.so.1 不是符号连接
+
+原因：
+
+系统找的是一个符号连接，而不是一个文件。
+
+解决方法：
+
+sudo mv /usr/lib/
+
+nvidia-375/libEGL.so.1 /usr/lib/nvidia-375/libEGL.so.1.org
+sudo mv /usr/lib32/nvidia-375/libEGL.so.1 /usr/lib32/nvidia-375/libEGL.so.1.org
+sudo ln -s /usr/lib/nvidia-375/libEGL.so.375.39 /usr/lib/nvidia-375/libEGL.so.1
+sudo ln -s /usr/lib32/nvidia-375/libEGL.so.375.39 /usr/lib32/nvidia-375/libEGL.so.1
+5.make all -j8出现错误：
+
+Makefile:588: recipe for target ‘.build_release/cuda/src/caffe/layers/embed_layer.o’ failed
+make: * [.build_release/cuda/src/caffe/layers/embed_layer.o] Error 1
+/usr/include/string.h: In function â€˜void* __mempcpy_inline(void, const void, size_t)â€™:
+/usr/include/string.h:652:42: error: â€˜memcpyâ€™ was not declared in this scope
+return (char *) memcpy (__dest, __src, __n) + __n;
+
+这个问题疑似跟Ubuntu16.04的版本有关系，
+在caffe的Makefile里面第409行
+
+NVCCFLAGS += -ccbin=$(CXX) -Xcompiler -fPIC $(COMMON_FLAGS)更改为
+
+NVCCFLAGS += -D_FORCE_INLINES -ccbin=$(CXX) -Xcompiler -fPIC $(COMMON_FLAGS)
+6.make all -j8出现错误：
+
+fatal error: hdf5.h: 没有那个文件或目录
+
+解决方案：
+1）在Makefile.config文件的第85行，添加/usr/include/hdf5/serial/ 到 INCLUDE_DIRS，也就是把下面第一行代码改为第二行代码。
+
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include
+
+INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include /usr/include/hdf5/serial/
+
+2）在Makefile文件的第173行，把 hdf5_hl 和hdf5修改为hdf5_serial_hl 和 hdf5_serial，也就是把下面第一行代码改为第二行代码。
+
+LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_hl hdf5
+
+LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_serial_hl hdf5_serial
+7.make all -j8出现错误：
+
+build_release/lib/libcaffe.so: undefined reference to google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(int, std::string const&, google::protobuf::io::CodedOutputStream*)'
+
+设置环境变量：LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH，将/usr/lib/x86_64-linux-gnu/放在最前面
+8.make all -j8出现错误：
+
+build_release/lib/libcaffe.so: undefined reference to `google::protobuf::io::CodedOutputStream::WriteStringWithSizeToArray(std::__cxx11::basic_string<char, std::char_traits
+
+.build_release/lib/libcaffe.so: undefined reference to `google::protobuf::Message::InitializationErrorString[abi:cxx11]() const'
+
+.build_release/lib/libcaffe.so: undefined reference to `google::protobuf::internal::NameOfEnumabi:cxx11'
+
+.build_release/lib/libcaffe.so: undefined reference to `google::base::CheckOpMessageBuilder::NewStringabi:cxx11'
+
+原因：
+应该是安装anaconda了,而且在里面安装了protobuf相关的东西，和系统里安装的冲突了
+解决方法：
+将系统环境中的anaconda路径先注释掉，就可以成功make
+gedit ~/.bashrc
+备注掉anaconda的路径
+8.make all -j8出现错误：
+
+http://blog.csdn.net/w5688414/article/details/76695413
+
+http://blog.csdn.net/u014696921/article/details/75258016
