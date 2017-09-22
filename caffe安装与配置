@@ -32,7 +32,7 @@
 更改
 INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include
 LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib
-为
+为（注意一个空格都不要少，不然没有用）
 INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/include/hdf5/serial \ /usr/local/include
 LIBRARY_DIRS := $(PYTHON_LIB) /usr/lib/x86_64-linux-gnu/hdf5/serial \ /usr/local/lib /usr/lib
 然后在编辑Makefile文件
